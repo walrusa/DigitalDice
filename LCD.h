@@ -151,6 +151,7 @@ void BSP_LCD_DrawCharS(int16_t x, int16_t y, char c, int16_t textColor, int16_t 
 //        size      number of pixels per character pixel (e.g. size==2 prints each pixel of font as 2x2 square)
 // Output: none
 void BSP_LCD_DrawChar(int16_t x, int16_t y, char c, int16_t textColor, int16_t bgColor, uint8_t size);
+void BSP_LCD_DrawCharBig(int16_t x, int16_t y, char c, int16_t textColor, int16_t bgColor, uint8_t size);
 
 
 //------------BSP_LCD_DrawString------------
@@ -164,6 +165,7 @@ void BSP_LCD_DrawChar(int16_t x, int16_t y, char c, int16_t textColor, int16_t b
 // bgColor is Black and size is 1
 // Output: number of characters printed
 uint32_t BSP_LCD_DrawString(uint16_t x, uint16_t y, char *pt, int16_t textColor);
+uint32_t BSP_LCD_DrawStringBig(uint16_t x, uint16_t y, char *pt, int16_t textColor);
 
 
 //********BSP_LCD_SetCursor*****************
@@ -279,7 +281,7 @@ void BSP_LCD_PlotIncrement(void);
 //  	value	  16-bit number in unsigned decimal format
 // outputs: none
 void BSP_LCD_Message(int device, int line, int col, char *string, unsigned int value);
-
+void BSP_LCD_MessageBig(int device, int line, int col, char *string, unsigned int value);
 
 //------------BSP_LCD_DrawCrosshaire-------------------
 // Draw a crosshair at the given coordinates

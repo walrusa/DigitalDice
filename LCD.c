@@ -1080,6 +1080,59 @@ void BSP_LCD_DrawChar(int16_t x, int16_t y, char c, int16_t textColor, int16_t b
   }
 }
 
+//------------BSP_LCD_DrawChar------------
+// Advanced character draw function.  This is similar to the function
+// from Adafruit_GFX.c but adapted for this processor.  However, this
+// function only uses one call to setAddrWindow(), which allows it to
+// run at least twice as fast.
+// Requires (11 + size*size*6*8) bytes of transmission (assuming image fully on screen)
+// Input: x         horizontal position of the top left corner of the character, columns from the left edge
+//        y         vertical position of the top left corner of the character, rows from the top edge
+//        c         character to be printed
+//        textColor 16-bit color of the character
+//        bgColor   16-bit color of the background
+//        size      number of pixels per character pixel (e.g. size==2 prints each pixel of font as 2x2 square)
+// Output: none
+void BSP_LCD_DrawCharBig(int16_t x, int16_t y, char c, int16_t textColor, int16_t bgColor, uint8_t size){
+  uint8_t line; // horizontal row of pixels of character
+  int32_t col, row, i, j;// loop indices
+  if(((x + 6*size - 1) >= _width)  || // Clip right
+     ((y + 8*size - 1) >= _height) || // Clip bottom
+     ((x + 6*size - 1) < 0)        || // Clip left
+     ((y + 8*size - 1) < 0)){         // Clip top
+    return;
+  }
+
+  setAddrWindow(x, y, x+6*size-1, y+8*size-1);
+
+  line = 0x01;        // print the top row first
+  // print the rows, starting at the top
+  for(row=0; row<8; row=row+1){
+    for(i=0; i<size; i=i+1){
+      // print the columns, starting on the left
+      for(col=0; col<5; col=col+1){
+        if(Font[(c*5)+col]&line){
+          // bit is set in Font, print pixel(s) in text color
+          for(j=0; j<size; j=j+1){
+            pushColor(textColor);
+          }
+        } else{
+          // bit is cleared in Font, print pixel(s) in background color
+          for(j=0; j<size; j=j+1){
+            pushColor(bgColor);
+          }
+        }
+      }
+      // print blank column(s) to the right of character
+      for(j=0; j<size; j=j+1){
+        pushColor(bgColor);
+      }
+    }
+    line = line<<1;   // move up to the next row
+  }
+}
+
+
 
 //------------BSP_LCD_DrawString------------
 // String draw function.
@@ -1103,8 +1156,28 @@ uint32_t BSP_LCD_DrawString(uint16_t x, uint16_t y, char *pt, int16_t textColor)
   }
   return count;  // number of characters printed
 }
-
-
+//------------BSP_LCD_DrawString------------
+// String draw function.
+// 13 rows (0 to 12) and 21 characters (0 to 20)
+// Requires (11 + size*size*6*8) bytes of transmission for each character
+// Input: x         columns from the left edge (0 to 20)
+//        y         rows from the top edge (0 to 12)
+//        pt        pointer to a null terminated string to be printed
+//        textColor 16-bit color of the characters
+// bgColor is Black and size is 1
+// Output: number of characters printed
+uint32_t BSP_LCD_DrawStringBig(uint16_t x, uint16_t y, char *pt, int16_t textColor){
+  uint32_t count = 0;
+  if(y>12) return 0;
+  while(*pt){
+    BSP_LCD_DrawCharBig(x*6, y*10, *pt, textColor, ST7735_BLACK, 8);
+    pt++;
+    x = x+1;
+    if(x>20) return count;  // number of characters printed
+    count++;
+  }
+  return count;  // number of characters printed
+}
 //-----------------------fillmessage-----------------------
 // Output a 32-bit number in unsigned decimal format
 // Input: 32-bit number to be transferred
@@ -1446,6 +1519,33 @@ void BSP_LCD_Message (int device, int line, int col, char *string, unsigned int 
 			numChars = BSP_LCD_DrawString(col, line, string, LCD_CYAN);
 			sprintf(numDigits, "%i", value);
 			BSP_LCD_DrawString(col + numChars, line, numDigits, LCD_CYAN);
+	}
+
+	
+}
+
+//------------BSP_LCD_Message-------------------
+// Divide the LCD into two logical partitions and provide
+// an interface to output a string
+// inputs: 	
+//    device	specifies top(0) or bottom(1)
+//		line 	  specifies line number (if device = 0, line = (0-11), if device = 1, line = 0)
+//    col     specifies column number (0-20)
+// 		string	pointer to NULL-terminated ASCII string
+//  	value	  16-bit number in unsigned decimal format
+// outputs: none
+void BSP_LCD_MessageBig (int device, int line, int col, char *string, unsigned int value){
+	uint32_t numChars;
+	char numDigits[5];
+	if (device) {
+			numChars = BSP_LCD_DrawStringBig(col, 12, string, LCD_CYAN);
+			sprintf(numDigits, "%i", value);
+			BSP_LCD_DrawStringBig(col + numChars, 12, numDigits, LCD_CYAN);
+	}
+	else {
+			numChars = BSP_LCD_DrawStringBig(col, line, string, LCD_CYAN);
+			sprintf(numDigits, "%i", value);
+			BSP_LCD_DrawStringBig(col + numChars, line, numDigits, LCD_CYAN);
 	}
 
 	

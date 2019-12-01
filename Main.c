@@ -129,12 +129,12 @@ void Consumer(void){
 		
 		if (abs(x - currentXAverage) < 30 && abs(y - currentYAverage) < 30 && abs(z - currentZAverage) < 30) {
 				printf("%d, %d, %d, 0, %d \n", x, y, z, currentRoll);
-				BSP_LCD_Message (0, 5, 9, roll, currentRoll);
+				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
 		}
 		else {
 				currentRoll = rand() % 6 + 1;
 				printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
-				BSP_LCD_Message (0, 5, 9, roll, currentRoll);
+				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
 
 		}
 		dataPoints++;
@@ -159,12 +159,12 @@ void Consumer(void){
 		
 		if (abs(x - currentXAverage) < 30 && abs(y - currentYAverage) < 30 && abs(z - currentZAverage) < 30) {
 				printf("%d, %d, %d, 0, %d \n", x, y, z, currentRoll);
-				BSP_LCD_Message (0, 5, 9, roll, currentRoll);
+				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
 		}
 		else {
 				currentRoll = rand() % 6 + 1;
 				printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
-				BSP_LCD_Message (0, 5, 9, roll, currentRoll);
+				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
 
 		}
 		dataPoints++;
