@@ -40,7 +40,10 @@ uint16_t currentRoll = 1;
 char xstring[] = {'X', ':', 0x00};
 char ystring[] = {'Y', ':', 0x00};
 char zstring[] = {'Z', ':', 0x00};
+char loading[] = {'L', 'O', 'A', 'D', 'I', 'N', 'G'};
 char roll[] = {0x00};
+
+
 
 
 //---------------------User debugging-----------------------
@@ -80,8 +83,10 @@ void Producer(void){
 
 //******** Consumer *************** 
 void Consumer(void){
+	int load;
 	rxDataType data;
 	RxFifo_Get(& data);
+	load = 1000;
 	x = data.x;
 	y = data.y;
 	z = data.z;
@@ -96,6 +101,41 @@ void Consumer(void){
 		currentIndex++;
 		if (currentIndex > 15) {
 			currentIndex = 0;
+		}
+		dataPoints++;
+		BSP_LCD_DrawString(5, 5, loading, 0xFFFF);
+		while (load > 0) {
+			load--;
+		}
+	}
+	else if (dataPoints == 16) {
+		BSP_LCD_DrawString(5, 5, loading, 0x0000);
+		currentXSum -= xdata[currentIndex];
+		currentYSum -= ydata[currentIndex];
+		currentZSum -= zdata[currentIndex];
+		xdata[currentIndex] = x;
+		ydata[currentIndex] = y;
+		zdata[currentIndex] = z;
+		currentXSum += xdata[currentIndex];
+		currentYSum += ydata[currentIndex];
+		currentZSum += zdata[currentIndex];
+		currentIndex++;
+		if (currentIndex > 15) {
+			currentIndex = 0;
+		}
+		currentXAverage = currentXSum >> 4;
+		currentYAverage = currentYSum >> 4;
+		currentZAverage = currentZSum >> 4;
+		
+		if (abs(x - currentXAverage) < 30 && abs(y - currentYAverage) < 30 && abs(z - currentZAverage) < 30) {
+				printf("%d, %d, %d, 0, %d \n", x, y, z, currentRoll);
+				BSP_LCD_Message (0, 5, 9, roll, currentRoll);
+		}
+		else {
+				currentRoll = rand() % 6 + 1;
+				printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
+				BSP_LCD_Message (0, 5, 9, roll, currentRoll);
+
 		}
 		dataPoints++;
 	}
