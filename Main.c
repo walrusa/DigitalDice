@@ -56,6 +56,13 @@ char zstring[] = {'Z', ':', 0x00};
 char loading[] = {'L', 'O', 'A', 'D', 'I', 'N', 'G'};
 char roll[] = {0x00};
 
+uint8_t sides;
+uint8_t inDiceMode;
+uint8_t inControlMode;
+uint8_t killThreads;
+
+void controlScreen(void);
+void bufferState(void);
 
 unsigned long NumCreated;   		// Number of foreground threads created
 unsigned long NumSamples;   		// Incremented every ADC sample, in Producer
@@ -151,6 +158,7 @@ while (1) {
 	data.y = rawY;
 	data.z = rawZ;
 	JsFifo_Put(data);
+	if (!inDiceMode){ NumCreated--; OS_Kill(); }
 }
 
 }
@@ -221,7 +229,7 @@ void Consumer(void){
 //		prevx = data.x; 
 //		prevy = data.y;
 //	}
-	while (1) {
+	while (inDiceMode) {
 	jsDataType data;
 	JsFifo_Get(& data);
 	x = data.x;
@@ -307,7 +315,9 @@ void Consumer(void){
 	BSP_LCD_Message (1, 12, 1, xstring, x);
 	BSP_LCD_Message (1, 12, 8, ystring, y);
 	BSP_LCD_Message (1, 12, 15, zstring, z);
+	if (!inDiceMode){ NumCreated--; OS_Kill(); }
 }
+		if (!inDiceMode){ NumCreated--; OS_Kill(); }
   //OS_Kill();  // done
 }
 
@@ -315,83 +325,124 @@ void Consumer(void){
 //--------------end of Task 3-----------------------------
 
 //------------------Task 4--------------------------------
-// foreground thread that runs without waiting or sleeping
-// it executes some calculation related to the position of crosshair 
-//******** CubeNumCalc *************** 
-// foreground thread, calculates the virtual cube number for the crosshair
-// never blocks, never sleeps, never dies
-// inputs:  none
-// outputs: none
-
-void CubeNumCalc(void){ 
-	uint16_t CurrentX,CurrentY;
-  while(1) {
-		if(NumSamples < RUNLENGTH){
-			CurrentX = x; CurrentY = y;
-			area[0] = CurrentX / 22;
-			area[1] = CurrentY / 20;
-			Calculation++;
-		}
-  }
+void incrementSides(void){
+		
+	   sides++;
+	   if (sides == 10){ sides = 0; }
+		 BSP_LCD_Message(1,3,4,"Sides: " , sides);
+	
 }
+
+void exitDiceMode(void){
+	
+	inDiceMode = 0;
+	inControlMode = 0;
+	killThreads = 1;
+	NumCreated += OS_AddThread(&bufferState , 128 ,  1);
+	
+	
+}
+
+void reset(void){
+	
+}
+
+void enterDiceMode(void){
+	
+	volatile unsigned long i;
+	
+	BSP_LCD_FillScreen(0);
+	BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x07E0);
+	
+	//OS_AddPeriodicThread(&Producer,PERIOD,1); // 2 kHz real time sampling of PD3
+	//NumCreated += OS_AddThread(&Interpreter, 128,2); 
+  NumCreated += OS_AddThread(&Consumer, 128,1);
+	NumCreated += OS_AddThread(&Producer, 128,1);
+	
+	inDiceMode = 1;
+	inControlMode = 0;
+	killThreads = 0;
+	
+	OS_AddSW1Task(&exitDiceMode , 1);
+	OS_AddSW2Task(&reset , 1);
+	
+}
+
+void controlScreen(void){
+			
+
+			
+			BSP_LCD_FillScreen(BGCOLOR);
+			BSP_LCD_DrawString(0 , 0 , "Select number of sides" , 0x07E0);
+	    BSP_LCD_DrawString(0 , 1 , "Button1: " , 0x07E0);
+	    BSP_LCD_DrawString(2 , 2 , "Increment sides" , 0x07E0);
+	    BSP_LCD_DrawString(0 , 3 , "Button2: " , 0x07E0);
+      BSP_LCD_DrawString(2 , 4 , "Start dice game" , 0x07E0);	
+	    OS_AddSW1Task(&incrementSides , 1);
+			OS_AddSW2Task(&enterDiceMode , 1);
+			BSP_LCD_Message(1,3,4,"Sides: " , sides);
+	    while(1){	if (inDiceMode){ NumCreated--; OS_Kill(); }}
+	    
+}
+
+void enterControlMode(void){
+	NumCreated += OS_AddThread(&controlScreen , 128 , 1);
+	inControlMode = 1;
+	inDiceMode = 0;
+}
+
+
+void bufferState(void){
+	
+
+	
+	BSP_LCD_FillScreen(BGCOLOR);
+	BSP_LCD_DrawString(0 , 0 , "Button1: " , 0x07E0);
+	BSP_LCD_DrawString(2 , 1 , "Enter dice mode" , 0x07E0);
+	BSP_LCD_DrawString(0 , 2 , "Button2: " , 0x07E0);
+  BSP_LCD_DrawString(2 , 3 , "Enter edit mode" , 0x07E0);	
+	
+	OS_AddSW1Task(&enterDiceMode , 1);
+	OS_AddSW2Task(&enterControlMode , 1);
+	
+	while (1){	if (inControlMode || inDiceMode){ NumCreated--; OS_Kill(); }}	
+}
+
 //--------------end of Task 4-----------------------------
 
 //------------------Task 5--------------------------------
-// UART background ISR performs serial input/output
-// Two software fifos are used to pass I/O data to foreground
-// Interpreter is a foreground thread, accepts input from serial port, outputs to serial port
-// inputs:  none
-// outputs: none
-// there are following commands
-//    print performance measures 
-//    time-jitter, number of data points lost, number of calculations performed
-//    i.e., NumSamples, NumCreated, MaxJitter, DataLost, UpdateWork, Calculations
-//void Interpreter(void){
-//	char command[80];
-//  while(1){
-//    OutCRLF(); UART_OutString(">>");
-//		UART_InString(command,79);
-//		OutCRLF();
-//		if (!(strcmp(command,"NumSamples"))){
-//			UART_OutString("NumSamples: ");
-//			UART_OutUDec(NumSamples);
-//		}
-//		else if (!(strcmp(command,"NumCreated"))){
-//			UART_OutString("NumCreated: ");
-//			UART_OutUDec(NumCreated);
-//		}
-//		else if (!(strcmp(command,"MaxJitter"))){
-//			UART_OutString("MaxJitter: ");
-//			UART_OutUDec(MaxJitter);
-//		}
-//		else if (!(strcmp(command,"DataLost"))){
-//			UART_OutString("DataLost: ");
-//			UART_OutUDec(DataLost);
-//		}
-//		else if (!(strcmp(command,"UpdateWork"))){
-//			UART_OutString("UpdateWork: ");
-//			UART_OutUDec(UpdateWork);
-//		}
-//	  else if (!(strcmp(command,"Calculations"))){
-//			UART_OutString("Calculations: ");
-//			UART_OutUDec(Calculation);
-//		}
-//		else if (!(strcmp(command,"FifoSize"))){
-//			UART_OutString("JSFifoSize: ");
-//			UART_OutUDec(JSFIFOSIZE);
-//		}
-//		else{
-//			UART_OutString("Command incorrect!");
-//		}
-//  }
-//}
+void startScreen(void){
+				
+				int32_t wait = 0;
+		    OS_ClearMsTime();
+        BSP_LCD_FillScreen(BGCOLOR);
+				BSP_LCD_DrawString(0 , 0 , "Loading Dice..." , 0x07E0); 
+        OS_ClearMsTime();	
+	
+        while (wait < 5){
+					if (OS_MsTime() > 2000){
+						BSP_LCD_FillRect( 32, 32, 64, 64, 0x0000);   
+						OS_ClearMsTime(); wait++;
+					} else if (OS_MsTime() > 1000){
+					  BSP_LCD_FillRect( 32, 32, 64, 64, 0x07E0);	
+					}
+        }
+				
+				BSP_LCD_FillScreen(BGCOLOR);
+        BSP_LCD_DrawString(0 , 0 , "Done" , 0x07E0);
+				OS_ClearMsTime();
+				while (OS_MsTime() < 1000){}
+				
+				inDiceMode = 0;
+				inControlMode = 0;
+				sides = 6;
+				NumCreated += OS_AddThread(&bufferState , 128 , 1);
+				NumCreated--;
+				OS_Kill();       				
+}
+
 //--------------end of Task 5-----------------------------
 
-
-void CrossHair_Init(void){
-	BSP_LCD_FillScreen(BGCOLOR);
-	BSP_Joystick_Input(&origin[0],&origin[1],&select);
-}
 
 //******************* Main Function**********
 int main(void){ 
@@ -418,10 +469,11 @@ int main(void){
   NumCreated = 0 ;
 // create initial foreground threads
   //NumCreated += OS_AddThread(&Interpreter, 128,2); 
-  NumCreated += OS_AddThread(&Consumer, 128,1); 
-	 NumCreated += OS_AddThread(&Producer, 128,1);
+  //NumCreated += OS_AddThread(&Consumer, 128,1); 
+	 //NumCreated += OS_AddThread(&Producer, 128,1);
 	//NumCreated += OS_AddThread(&CubeNumCalc, 128,1);
- 
+   NumCreated += OS_AddThread(&startScreen , 128 , 1); 
+
   OS_Launch(TIME_2MS); // doesn't return, interrupts enabled in here
 	return 0;            // this never executes
 }
