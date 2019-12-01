@@ -1561,4 +1561,3 @@ void BSP_LCD_DrawCrosshair(int16_t x, int16_t y, int16_t color) {
 	BSP_LCD_DrawFastHLine(x - 5, y, 10, color);
 	BSP_LCD_DrawFastVLine(x, y - 5, 10, color);
 }
-

@@ -22,54 +22,56 @@
 
 #include <stdint.h>
 #include "FIFO.h"
+#include "os.h"
 
 // Two-pointer implementation of the receive FIFO
 // can hold 0 to RXFIFOSIZE-1 elements
 
-rxDataType volatile *RxPutPt; // put next
-rxDataType volatile *RxGetPt; // get next
-rxDataType static RxFifo[RXFIFOSIZE];
+jsDataType volatile *JsPutPt; // put next
+jsDataType volatile *JsGetPt; // get next
+jsDataType static JsFifo[JSFIFOSIZE];
+Sema4Type JsFifoAvailable;
 
 // initialize pointer FIFO
-void RxFifo_Init(void){ 
-	long sr;
+void JsFifo_Init(void){ long sr;
   sr = StartCritical();      // make atomic
-  RxPutPt = RxGetPt = &RxFifo[0]; // Empty
+	OS_InitSemaphore(&JsFifoAvailable, 0);
+  JsPutPt = JsGetPt = &JsFifo[0]; // Empty
   EndCritical(sr);
 }
 // add element to end of pointer FIFO
 // return RXFIFOSUCCESS if successful
-int RxFifo_Put(rxDataType data){
-  rxDataType volatile *nextPutPt;
-  nextPutPt = RxPutPt+1;
-  if(nextPutPt == &RxFifo[RXFIFOSIZE]){
-    nextPutPt = &RxFifo[0];  // wrap
+int JsFifo_Put(jsDataType data){
+  jsDataType volatile *nextPutPt;
+  nextPutPt = JsPutPt+1;
+  if(nextPutPt == &JsFifo[JSFIFOSIZE]){
+    nextPutPt = &JsFifo[0];  // wrap
   }
-  if(nextPutPt == RxGetPt){
-    return(RXFIFOFAIL);      // Failed, fifo full
+  if(nextPutPt == JsGetPt){
+    return(JSFIFOFAIL);      // Failed, fifo full
   }
   else{
-    *(RxPutPt) = data;       // Put
-    RxPutPt = nextPutPt;     // Success, update
-    return(RXFIFOSUCCESS);
+    *(JsPutPt) = data;       // Put
+    JsPutPt = nextPutPt;     // Success, update
+		OS_Signal(&JsFifoAvailable);
+    return(JSFIFOSUCCESS);
   }
 }
 // remove element from front of pointer FIFO
 // return RXFIFOSUCCESS if successful
-int RxFifo_Get(rxDataType *datapt){
-  while(RxPutPt == RxGetPt){}      // Empty if PutPt=GetPt
-  
-  *datapt = *(RxGetPt++);
-  if(RxGetPt == &RxFifo[RXFIFOSIZE]){
-     RxGetPt = &RxFifo[0];   // wrap
+int JsFifo_Get(jsDataType *datapt){
+  OS_Wait(&JsFifoAvailable);
+  *datapt = *(JsGetPt++);
+  if(JsGetPt == &JsFifo[JSFIFOSIZE]){
+     JsGetPt = &JsFifo[0];   // wrap
   }
-  return(RXFIFOSUCCESS);
+  return(JSFIFOSUCCESS);
 }
 // number of elements in pointer FIFO
 // 0 to RXFIFOSIZE-1
-uint32_t RxFifo_Size(void){
-  if(RxPutPt < RxGetPt){
-    return ((uint32_t)(RxPutPt-RxGetPt+(RXFIFOSIZE*sizeof(rxDataType)))/sizeof(rxDataType));
+uint32_t JsFifo_Size(void){
+  if(JsPutPt < JsGetPt){
+    return ((uint32_t)(JsPutPt-JsGetPt+(JSFIFOSIZE*sizeof(jsDataType)))/sizeof(jsDataType));
   }
-  return ((uint32_t)(RxPutPt-RxGetPt)/sizeof(rxDataType));
+  return ((uint32_t)(JsPutPt-JsGetPt)/sizeof(jsDataType));
 }
