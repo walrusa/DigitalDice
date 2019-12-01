@@ -235,7 +235,7 @@ void Consumer(void){
 	x = data.x;
 	y = data.y;
 	z = data.z;
-	
+	OS_bWait(&LCDFree);
 	if (dataPoints < 16) {
 		xdata[currentIndex] = x;
 		ydata[currentIndex] = y;
@@ -274,7 +274,7 @@ void Consumer(void){
 				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
 		}
 		else {
-				currentRoll = rand() % 6 + 1;
+				currentRoll = rand() % sides + 1;
 				printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
 				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
 
@@ -304,7 +304,7 @@ void Consumer(void){
 				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
 		}
 		else {
-				currentRoll = rand() % 6 + 1;
+				currentRoll = rand() % sides + 1;
 				//printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
 				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
 
@@ -315,6 +315,7 @@ void Consumer(void){
 	BSP_LCD_Message (1, 12, 1, xstring, x);
 	BSP_LCD_Message (1, 12, 8, ystring, y);
 	BSP_LCD_Message (1, 12, 15, zstring, z);
+	OS_bSignal(&LCDFree);
 	if (!inDiceMode){ NumCreated--; OS_Kill(); }
 }
 		if (!inDiceMode){ NumCreated--; OS_Kill(); }
@@ -328,7 +329,9 @@ void Consumer(void){
 void incrementSides(void){
 		
 	   sides++;
-	   if (sides == 10){ sides = 0; }
+	   if (sides == 10){ 
+			sides = 2; 
+			}
 		 BSP_LCD_Message(1,3,4,"Sides: " , sides);
 	
 }
@@ -348,40 +351,49 @@ void reset(void){
 }
 
 void enterDiceMode(void){
-	
+
 	volatile unsigned long i;
-	
-	BSP_LCD_FillScreen(0);
-	BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x07E0);
-	
-	//OS_AddPeriodicThread(&Producer,PERIOD,1); // 2 kHz real time sampling of PD3
-	//NumCreated += OS_AddThread(&Interpreter, 128,2); 
-  NumCreated += OS_AddThread(&Consumer, 128,1);
-	NumCreated += OS_AddThread(&Producer, 128,1);
-	
+		
 	inDiceMode = 1;
 	inControlMode = 0;
 	killThreads = 0;
 	
+	OS_bWait(&LCDFree);
+
+	BSP_LCD_FillScreen(0);
+	BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x07E0);
+	
+	OS_bSignal(&LCDFree);
+	//OS_AddPeriodicThread(&Producer,PERIOD,1); // 2 kHz real time sampling of PD3
+	//NumCreated += OS_AddThread(&Interpreter, 128,2); 
+  NumCreated += OS_AddThread(&Consumer, 128,1);
+	NumCreated += OS_AddThread(&Producer, 128,1);
+
+	
 	OS_AddSW1Task(&exitDiceMode , 1);
 	OS_AddSW2Task(&reset , 1);
-	
+
 }
 
 void controlScreen(void){
-			
+	OS_bWait(&LCDFree);
+	BSP_LCD_FillScreen(BGCOLOR);
+	BSP_LCD_DrawString(0 , 0 , "Select number of sides" , 0x07E0);
+	BSP_LCD_DrawString(0 , 1 , "Button1: " , 0x07E0);
+	BSP_LCD_DrawString(2 , 2 , "Increment sides" , 0x07E0);
+	BSP_LCD_DrawString(0 , 3 , "Button2: " , 0x07E0);
+	BSP_LCD_DrawString(2 , 4 , "Start dice game" , 0x07E0);	
+	BSP_LCD_Message(1,3,4,"Sides: " , sides);
+	OS_bSignal(&LCDFree);
+	OS_AddSW1Task(&incrementSides , 1);
+	OS_AddSW2Task(&enterDiceMode , 1);
 
-			
-			BSP_LCD_FillScreen(BGCOLOR);
-			BSP_LCD_DrawString(0 , 0 , "Select number of sides" , 0x07E0);
-	    BSP_LCD_DrawString(0 , 1 , "Button1: " , 0x07E0);
-	    BSP_LCD_DrawString(2 , 2 , "Increment sides" , 0x07E0);
-	    BSP_LCD_DrawString(0 , 3 , "Button2: " , 0x07E0);
-      BSP_LCD_DrawString(2 , 4 , "Start dice game" , 0x07E0);	
-	    OS_AddSW1Task(&incrementSides , 1);
-			OS_AddSW2Task(&enterDiceMode , 1);
-			BSP_LCD_Message(1,3,4,"Sides: " , sides);
-	    while(1){	if (inDiceMode){ NumCreated--; OS_Kill(); }}
+
+	while(1){	
+		if (inDiceMode){ 
+			NumCreated--; OS_Kill(); 
+		}
+	}
 	    
 }
 
@@ -395,25 +407,31 @@ void enterControlMode(void){
 void bufferState(void){
 	
 
-	
+	OS_bWait(&LCDFree);
 	BSP_LCD_FillScreen(BGCOLOR);
 	BSP_LCD_DrawString(0 , 0 , "Button1: " , 0x07E0);
 	BSP_LCD_DrawString(2 , 1 , "Enter dice mode" , 0x07E0);
 	BSP_LCD_DrawString(0 , 2 , "Button2: " , 0x07E0);
   BSP_LCD_DrawString(2 , 3 , "Enter edit mode" , 0x07E0);	
-	
+	OS_bSignal(&LCDFree);
 	OS_AddSW1Task(&enterDiceMode , 1);
 	OS_AddSW2Task(&enterControlMode , 1);
 	
-	while (1){	if (inControlMode || inDiceMode){ NumCreated--; OS_Kill(); }}	
+
+	while (1){	
+		if (inControlMode || inDiceMode){ 
+			NumCreated--; 	
+			OS_Kill(); 
+		}
+	}	
 }
 
 //--------------end of Task 4-----------------------------
 
 //------------------Task 5--------------------------------
 void startScreen(void){
-				
 				int32_t wait = 0;
+				OS_bWait(&LCDFree);
 		    OS_ClearMsTime();
         BSP_LCD_FillScreen(BGCOLOR);
 				BSP_LCD_DrawString(0 , 0 , "Loading Dice..." , 0x07E0); 
@@ -438,6 +456,7 @@ void startScreen(void){
 				sides = 6;
 				NumCreated += OS_AddThread(&bufferState , 128 , 1);
 				NumCreated--;
+				OS_bSignal(&LCDFree);
 				OS_Kill();       				
 }
 
@@ -473,7 +492,7 @@ int main(void){
 	 //NumCreated += OS_AddThread(&Producer, 128,1);
 	//NumCreated += OS_AddThread(&CubeNumCalc, 128,1);
    NumCreated += OS_AddThread(&startScreen , 128 , 1); 
-
+	OS_InitSemaphore(&LCDFree, 1);
   OS_Launch(TIME_2MS); // doesn't return, interrupts enabled in here
 	return 0;            // this never executes
 }
