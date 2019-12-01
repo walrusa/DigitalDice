@@ -10,6 +10,8 @@
 #include "PORTE.h"
 #include "tm4c123gh6pm.h"
 #include "BSP.h"
+#include <time.h> 
+
 // Constants
 #define BGCOLOR     					LCD_BLACK
 #define CROSSSIZE            			5
@@ -34,9 +36,12 @@ uint16_t currentXAverage;
 uint16_t currentYAverage;
 uint16_t currentZAverage;
 uint16_t dataPoints = 0;
-char xstring[] = {'X', ':', ' ', 0x00};
-char ystring[] = {'Y', ':', ' ', 0x00};
-char zstring[] = {'Z', ':', ' ', 0x00};
+uint16_t currentRoll = 1;
+char xstring[] = {'X', ':', 0x00};
+char ystring[] = {'Y', ':', 0x00};
+char zstring[] = {'Z', ':', 0x00};
+char roll[] = {0x00};
+
 
 //---------------------User debugging-----------------------
 
@@ -49,9 +54,9 @@ unsigned long Count;   		// number of times thread loops
 //--------------------------------------------------------------
 void CrossHair_Init(void){
 	BSP_LCD_FillScreen(LCD_BLACK);	// Draw a black screen
-	BSP_LCD_Message (1, 12, 3, xstring, x);
-	BSP_LCD_Message (1, 12, 14, ystring, y);
-	BSP_LCD_Message (0, 5, 3, zstring, z);
+	BSP_LCD_Message (1, 12, 1, xstring, x);
+	BSP_LCD_Message (1, 12, 8, ystring, y);
+	BSP_LCD_Message (1, 12, 15, zstring, z);
 }
 
 //******** Producer *************** 
@@ -113,17 +118,21 @@ void Consumer(void){
 		currentZAverage = currentZSum >> 4;
 		
 		if (abs(x - currentXAverage) < 30 && abs(y - currentYAverage) < 30 && abs(z - currentZAverage) < 30) {
-				printf("%d, %d, %d, 0 \n", x, y, z);
+				printf("%d, %d, %d, 0, %d \n", x, y, z, currentRoll);
+				BSP_LCD_Message (0, 5, 9, roll, currentRoll);
 		}
 		else {
-				printf("%d, %d, %d, 1 \n", x, y, z);
+				currentRoll = rand() % 6 + 1;
+				printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
+				BSP_LCD_Message (0, 5, 9, roll, currentRoll);
+
 		}
 		dataPoints++;
 	}
 
-	BSP_LCD_Message (1, 12, 3, xstring, x);
-	BSP_LCD_Message (1, 12, 14, ystring, y);
-	BSP_LCD_Message (0, 5, 3, zstring, z);
+	BSP_LCD_Message (1, 12, 1, xstring, x);
+	BSP_LCD_Message (1, 12, 8, ystring, y);
+	BSP_LCD_Message (1, 12, 15, zstring, z);
 }
 
 //******** Main *************** 
@@ -150,6 +159,7 @@ int main(void){
 		printf("After");		
 		RxFifo_Init();
 		OS_AddPeriodicThread(&Producer,PERIOD, 1);
+		srand(100); 
 		while(1){
 			Consumer();
 		}
