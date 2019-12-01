@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "PLL.h"
 #include "LCD.h"
 #include "os.h"
@@ -20,8 +21,19 @@ int16_t y = 63;  // vertical position of the crosshair, initially 63
 int16_t z = 63;
 int16_t prevx = 63;
 int16_t	prevy = 63;
-int16_t prev = 63;
+int16_t prevz = 63;
 uint8_t select;  // joystick push
+uint16_t xdata[16] = {0};
+uint16_t ydata[16] = {0};
+uint16_t zdata[16] = {0};
+uint32_t currentXSum;
+uint32_t currentYSum;
+uint32_t currentZSum;
+uint16_t currentIndex;
+uint16_t currentXAverage;
+uint16_t currentYAverage;
+uint16_t currentZAverage;
+uint16_t dataPoints = 0;
 char xstring[] = {'X', ':', ' ', 0x00};
 char ystring[] = {'Y', ':', ' ', 0x00};
 char zstring[] = {'Z', ':', ' ', 0x00};
@@ -68,8 +80,47 @@ void Consumer(void){
 	x = data.x;
 	y = data.y;
 	z = data.z;
+	
+	if (dataPoints < 16) {
+		xdata[currentIndex] = x;
+		ydata[currentIndex] = y;
+		zdata[currentIndex] = z;
+		currentXSum += xdata[currentIndex];
+		currentYSum += ydata[currentIndex];
+		currentZSum += zdata[currentIndex];
+		currentIndex++;
+		if (currentIndex > 15) {
+			currentIndex = 0;
+		}
+		dataPoints++;
+	}
+	else {
+		currentXSum -= xdata[currentIndex];
+		currentYSum -= ydata[currentIndex];
+		currentZSum -= zdata[currentIndex];
+		xdata[currentIndex] = x;
+		ydata[currentIndex] = y;
+		zdata[currentIndex] = z;
+		currentXSum += xdata[currentIndex];
+		currentYSum += ydata[currentIndex];
+		currentZSum += zdata[currentIndex];
+		currentIndex++;
+		if (currentIndex > 15) {
+			currentIndex = 0;
+		}
+		currentXAverage = currentXSum >> 4;
+		currentYAverage = currentYSum >> 4;
+		currentZAverage = currentZSum >> 4;
+		
+		if (abs(x - currentXAverage) < 30 && abs(y - currentYAverage) < 30 && abs(z - currentZAverage) < 30) {
+				printf("%d, %d, %d, 0 \n", x, y, z);
+		}
+		else {
+				printf("%d, %d, %d, 1 \n", x, y, z);
+		}
+		dataPoints++;
+	}
 
-  printf("%d, %d, %d \n", x, y, z); 
 	BSP_LCD_Message (1, 12, 3, xstring, x);
 	BSP_LCD_Message (1, 12, 14, ystring, y);
 	BSP_LCD_Message (0, 5, 3, zstring, z);
@@ -78,6 +129,10 @@ void Consumer(void){
 //******** Main *************** 
 int main(void){
   PLL_Init(Bus80MHz);       // set system clock to 80 MHz
+	currentIndex = 0;
+	currentXSum = 0;
+	currentYSum = 0;
+	currentZSum = 0;
 	Output_Init();
 #if TEST_TIMER
 	PortE_Init();       // profile user threads
@@ -87,12 +142,12 @@ int main(void){
 #else
 
   	BSP_LCD_Init();        // initialize LCD
-		printf("Starting\n");
+		printf("Starting");
 	  BSP_Joystick_Init();   // initialize Joystick
   	CrossHair_Init();
-		printf("Before\n");
+		printf("Before");
 		BSP_Accelerometer_Init();
-		printf("After\n");		
+		printf("After");		
 		RxFifo_Init();
 		OS_AddPeriodicThread(&Producer,PERIOD, 1);
 		while(1){
