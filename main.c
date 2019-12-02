@@ -19,6 +19,7 @@
 #include "joystick.h"
 #include "PORTE.h"
 #include "BSP.h"
+#include <math.h>
 #include <time.h> 
 // Constants
 #define BGCOLOR     					LCD_BLACK
@@ -240,11 +241,12 @@ void Consumer(void){
 	OS_bWait(&LCDFree);
 	if (done == 0) {
 	if (dataPoints < 100) {
+		BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x07E0);
 		if ((dataPoints & 8) == 0) {
-				BSP_LCD_DrawString(5, 5, loading, 0xFFFF);
+				BSP_LCD_DrawString(7, 7, loading, 0xFFFF);
 		}
 		else if ((dataPoints & 8) == 8) {
-				BSP_LCD_DrawString(5, 5, loading, 0x0000);
+				BSP_LCD_DrawString(7, 7, loading, 0x0000);
 		}
 		dataPoints++;
 	}
@@ -261,14 +263,15 @@ void Consumer(void){
 		}
 		dataPoints++;
 		if ((dataPoints & 8) == 8) {
-				BSP_LCD_DrawString(5, 5, loading, 0xFFFF);
+				BSP_LCD_DrawString(7, 7, loading, 0xFFFF);
 		}
 		else  if ((dataPoints & 8) == 8) {
-				BSP_LCD_DrawString(5, 5, loading, 0x0000);
+				BSP_LCD_DrawString(7, 7, loading, 0x0000);
 		}
 	}
 	else if (dataPoints == 116) {
-		BSP_LCD_DrawString(5, 5, loading, 0x0000);
+		BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x0000);
+		BSP_LCD_DrawString(7, 7, loading, 0x0000);
 		currentXSum -= xdata[currentIndex];
 		currentYSum -= ydata[currentIndex];
 		currentZSum -= zdata[currentIndex];
@@ -288,12 +291,12 @@ void Consumer(void){
 		
 		if (abs(x - currentXAverage) < 30 && abs(y - currentYAverage) < 30 && abs(z - currentZAverage) < 30) {
 				printf("%d, %d, %d, 0, %d \n", x, y, z, currentRoll);
-				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
+				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll);
 		}
 		else {
 				currentRoll = rand() % sides + 1;
 				printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
-				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
+				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll);
 
 		}
 		dataPoints++;
@@ -319,22 +322,22 @@ void Consumer(void){
 		if (abs(x - currentXAverage) < 30 && abs(y - currentYAverage) < 30 && abs(z - currentZAverage) < 30) {
 				steadySamples++;
 				//printf("%d, %d, %d, 0, %d \n", x, y, z, currentRoll);
-				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
+				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll);
 		}
 		else {
 				rollingSamples++;
 				steadySamples = 0;
 				currentRoll = rand() % sides + 1;
 				//printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
-				BSP_LCD_MessageBig (0, 3, 7, roll, currentRoll);
+				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll);
 
 		}
 		dataPoints++;
 	}
 }
-	BSP_LCD_Message (1, 12, 1, xstring, x);
-	BSP_LCD_Message (1, 12, 8, ystring, y);
-	BSP_LCD_Message (1, 12, 15, zstring, z);
+	//BSP_LCD_Message (1, 12, 1, xstring, x);
+	//BSP_LCD_Message (1, 12, 8, ystring, y);
+	//BSP_LCD_Message (1, 12, 15, zstring, z);
 	OS_bSignal(&LCDFree);
 	if (steadySamples > 20 && rollingSamples > 0) {
 		done = 1;
@@ -398,7 +401,7 @@ void enterDiceMode(void){
 	OS_bWait(&LCDFree);
 
 	BSP_LCD_FillScreen(0);
-	BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x07E0);
+	//BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x07E0);
 	
 	OS_bSignal(&LCDFree);
 	//OS_AddPeriodicThread(&Producer,PERIOD,1); // 2 kHz real time sampling of PD3
@@ -498,7 +501,7 @@ void startScreen(void){
 				OS_bWait(&LCDFree);
 		    OS_ClearMsTime();
         BSP_LCD_FillScreen(BGCOLOR);
-				BSP_LCD_DrawString(0 , 0 , "Loading Dice..." , 0x07E0); 
+				BSP_LCD_DrawString(5 , 0 , "Digital Dice" , 0x07E0); 
         OS_ClearMsTime();	
 	
         while (wait < 3){
@@ -513,10 +516,10 @@ void startScreen(void){
           wait++;						
         }
 				
-				BSP_LCD_FillScreen(BGCOLOR);
-        BSP_LCD_DrawString(0 , 0 , "Done" , 0x07E0);
-				OS_ClearMsTime();
-				while (OS_MsTime() < 1000){}
+				//BSP_LCD_FillScreen(BGCOLOR);
+        //BSP_LCD_DrawString(0 , 0 , "Done" , 0x07E0);
+				//OS_ClearMsTime();
+				//while (OS_MsTime() < 1000){}
 				
 				inDiceMode = 0;
 				inControlMode = 0;
