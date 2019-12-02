@@ -56,6 +56,9 @@ char ystring[] = {'Y', ':', 0x00};
 char zstring[] = {'Z', ':', 0x00};
 char loading[] = {'L', 'O', 'A', 'D', 'I', 'N', 'G'};
 char roll[] = {0x00};
+char sideArr[] = {0x00};
+char sideNameArr[] = {0x00};
+
 uint8_t steadySamples;
 uint8_t rollingSamples;
 uint8_t done;
@@ -162,6 +165,7 @@ while (1) {
 	data.z = rawZ;
 	JsFifo_Put(data);
 	if (!inDiceMode){ NumCreated--; OS_Kill(); }
+	OS_Suspend();
 }
 
 }
@@ -243,10 +247,10 @@ void Consumer(void){
 	if (dataPoints < 100) {
 		BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x07E0);
 		if ((dataPoints & 8) == 0) {
-				BSP_LCD_DrawString(7, 7, loading, 0xFFFF);
+				BSP_LCD_DrawString(7, 6, loading, 0xFFFF);
 		}
 		else if ((dataPoints & 8) == 8) {
-				BSP_LCD_DrawString(7, 7, loading, 0x0000);
+				BSP_LCD_DrawString(7, 6, loading, 0x0000);
 		}
 		dataPoints++;
 	}
@@ -263,15 +267,15 @@ void Consumer(void){
 		}
 		dataPoints++;
 		if ((dataPoints & 8) == 8) {
-				BSP_LCD_DrawString(7, 7, loading, 0xFFFF);
+				BSP_LCD_DrawString(7, 6, loading, 0xFFFF);
 		}
 		else  if ((dataPoints & 8) == 8) {
-				BSP_LCD_DrawString(7, 7, loading, 0x0000);
+				BSP_LCD_DrawString(7, 6, loading, 0x0000);
 		}
 	}
 	else if (dataPoints == 116) {
 		BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x0000);
-		BSP_LCD_DrawString(7, 7, loading, 0x0000);
+		BSP_LCD_DrawString(7, 6, loading, 0x0000);
 		currentXSum -= xdata[currentIndex];
 		currentYSum -= ydata[currentIndex];
 		currentZSum -= zdata[currentIndex];
@@ -290,13 +294,13 @@ void Consumer(void){
 		currentZAverage = currentZSum >> 4;
 		
 		if (abs(x - currentXAverage) < 30 && abs(y - currentYAverage) < 30 && abs(z - currentZAverage) < 30) {
-				printf("%d, %d, %d, 0, %d \n", x, y, z, currentRoll);
-				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll);
+				printf("%d, %d, %d, %d, %d, %d, %d \n", x, y, z, currentRoll, currentXAverage, currentYAverage, currentZAverage);
+				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll, 8);
 		}
 		else {
 				currentRoll = rand() % sides + 1;
-				printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
-				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll);
+				printf("%d, %d, %d, %d, %d, %d, %d \n", x, y, z, currentRoll, currentXAverage, currentYAverage, currentZAverage);
+				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll, 8);
 
 		}
 		dataPoints++;
@@ -321,15 +325,15 @@ void Consumer(void){
 		
 		if (abs(x - currentXAverage) < 30 && abs(y - currentYAverage) < 30 && abs(z - currentZAverage) < 30) {
 				steadySamples++;
-				//printf("%d, %d, %d, 0, %d \n", x, y, z, currentRoll);
-				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll);
+				printf("%d, %d, %d, %d, %d, %d, %d \n", x, y, z, currentRoll, currentXAverage, currentYAverage, currentZAverage);
+				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll, 8);
 		}
 		else {
 				rollingSamples++;
 				steadySamples = 0;
 				currentRoll = rand() % sides + 1;
-				//printf("%d, %d, %d, 1, %d \n", x, y, z, currentRoll);
-				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll);
+				printf("%d, %d, %d, %d, %d, %d, %d \n", x, y, z, currentRoll, currentXAverage, currentYAverage, currentZAverage);
+				BSP_LCD_MessageBig (0, 4, 7, roll, currentRoll, 8);
 
 		}
 		dataPoints++;
@@ -357,7 +361,9 @@ void incrementSides(void){
 	   if (sides == 10){ 
 			sides = 2; 
 			}
-		 BSP_LCD_Message(1,3,4,"Sides: " , sides);
+		 //BSP_LCD_Message(1,3,4,"Sides: " , sides);
+		 BSP_LCD_MessageBig(0,7,8,sideArr , sides, 6);
+
 	
 }
 
@@ -424,12 +430,12 @@ void enterBufferState(void){
 void controlScreen(void){
 	OS_bWait(&LCDFree);
 	BSP_LCD_FillScreen(BGCOLOR);
-	BSP_LCD_DrawString(0 , 0 , "Select number of sides" , 0x07E0);
-	BSP_LCD_DrawString(0 , 1 , "Button1: " , 0x07E0);
-	BSP_LCD_DrawString(2 , 2 , "Increment sides" , 0x07E0);
-	BSP_LCD_DrawString(0 , 3 , "Button2: " , 0x07E0);
-	BSP_LCD_DrawString(2 , 4 , "Start dice game" , 0x07E0);	
-	BSP_LCD_Message(1,3,4,"Sides: " , sides);
+	BSP_LCD_DrawString(0 , 0 , "Button1: " , 0x07E0);
+	BSP_LCD_DrawString(2 , 1 , "Increment sides" , 0x07E0);
+	BSP_LCD_DrawString(0 , 2 , "Button2: " , 0x07E0);
+	BSP_LCD_DrawString(2 , 3 , "Ret to buffer state" , 0x07E0);	
+	BSP_LCD_DrawString(7, 5, "(Sides)", LCD_CYAN);
+	BSP_LCD_MessageBig(0,7,8,sideArr , sides, 6);
 	OS_bSignal(&LCDFree);
 	OS_AddSW1Task(&incrementSides , 1);
 	OS_AddSW2Task(&enterBufferState , 1);

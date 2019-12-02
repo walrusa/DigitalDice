@@ -1166,11 +1166,11 @@ uint32_t BSP_LCD_DrawString(uint16_t x, uint16_t y, char *pt, int16_t textColor)
 //        textColor 16-bit color of the characters
 // bgColor is Black and size is 1
 // Output: number of characters printed
-uint32_t BSP_LCD_DrawStringBig(uint16_t x, uint16_t y, char *pt, int16_t textColor){
+uint32_t BSP_LCD_DrawStringBig(uint16_t x, uint16_t y, char *pt, int16_t textColor, uint8_t fontsize){
   uint32_t count = 0;
   if(y>12) return 0;
   while(*pt){
-    BSP_LCD_DrawCharBig(x*6, y*10, *pt, textColor, ST7735_BLACK, 8);
+    BSP_LCD_DrawCharBig(x*6, y*10, *pt, textColor, ST7735_BLACK, fontsize);
     pt++;
     x = x+1;
     if(x>20) return count;  // number of characters printed
@@ -1534,18 +1534,18 @@ void BSP_LCD_Message (int device, int line, int col, char *string, unsigned int 
 // 		string	pointer to NULL-terminated ASCII string
 //  	value	  16-bit number in unsigned decimal format
 // outputs: none
-void BSP_LCD_MessageBig (int device, int line, int col, char *string, unsigned int value){
+void BSP_LCD_MessageBig (int device, int line, int col, char *string, unsigned int value, uint8_t fontsize){
 	uint32_t numChars;
 	char numDigits[5];
 	if (device) {
-			numChars = BSP_LCD_DrawStringBig(col, 12, string, LCD_CYAN);
+			numChars = BSP_LCD_DrawStringBig(col, 12, string, LCD_CYAN, fontsize);
 			sprintf(numDigits, "%i", value);
-			BSP_LCD_DrawStringBig(col + numChars, 12, numDigits, LCD_CYAN);
+			BSP_LCD_DrawStringBig(col + numChars, 12, numDigits, LCD_CYAN, fontsize);
 	}
 	else {
-			numChars = BSP_LCD_DrawStringBig(col, line, string, LCD_CYAN);
+			numChars = BSP_LCD_DrawStringBig(col, line, string, LCD_CYAN, fontsize);
 			sprintf(numDigits, "%i", value);
-			BSP_LCD_DrawStringBig(col + numChars, line, numDigits, LCD_CYAN);
+			BSP_LCD_DrawStringBig(col + numChars, line, numDigits, LCD_CYAN, fontsize);
 	}
 
 	
