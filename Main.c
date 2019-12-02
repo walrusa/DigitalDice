@@ -29,6 +29,8 @@
 #define RUNLENGTH            	600 // 30 seconds run length
 
 Sema4Type LCDFree;
+Sema4Type ProducerResetFree;
+Sema4Type ConsumerResetFree;
 uint16_t origin[2]; 	// The original ADC value of x,y if the joystick is not touched, used as reference
 int16_t x = 63;  			// horizontal position of the crosshair, initially 63
 int16_t y = 63;  			// vertical position of the crosshair, initially 63
@@ -59,8 +61,11 @@ char roll[] = {0x00};
 uint8_t sides;
 uint8_t inDiceMode;
 uint8_t inControlMode;
-uint8_t killThreads;
-
+//uint8_t resetVar = 1;
+//uint8_t test;
+//uint8_t test2;
+//uint8_t test3;
+//uint8_t bufferStateVar = 1;
 void controlScreen(void);
 void bufferState(void);
 
@@ -77,6 +82,8 @@ unsigned long const JitterSize=JITTERSIZE;
 unsigned long JitterHistogram[JITTERSIZE]={0,};
 unsigned long TotalWithI1;
 unsigned short MaxWithI1;
+
+void enterDiceMode(void);
 
 void Device_Init(void){
 	BSP_LCD_Init();
@@ -158,7 +165,12 @@ while (1) {
 	data.y = rawY;
 	data.z = rawZ;
 	JsFifo_Put(data);
-	if (!inDiceMode){ NumCreated--; OS_Kill(); }
+	if (!inDiceMode){ 
+		NumCreated--; 
+		//OS_bSignal(&ProducerResetFree);
+		//test = 14;
+		OS_Kill(); 
+	}
 }
 
 }
@@ -316,9 +328,20 @@ void Consumer(void){
 	BSP_LCD_Message (1, 12, 8, ystring, y);
 	BSP_LCD_Message (1, 12, 15, zstring, z);
 	OS_bSignal(&LCDFree);
-	if (!inDiceMode){ NumCreated--; OS_Kill(); }
-}
-		if (!inDiceMode){ NumCreated--; OS_Kill(); }
+		if (!inDiceMode){ 
+			NumCreated--; 
+			//OS_bSignal(&ConsumerResetFree);
+			//test2 = 14;
+			OS_Kill(); 
+		}
+	}
+	OS_bSignal(&LCDFree);
+	if (!inDiceMode){ 
+		NumCreated--; 
+		//OS_bSignal(&ConsumerResetFree);
+		//test3 = 14;
+		OS_Kill(); 
+	}
   //OS_Kill();  // done
 }
 
@@ -340,41 +363,56 @@ void exitDiceMode(void){
 	
 	inDiceMode = 0;
 	inControlMode = 0;
-	killThreads = 1;
 	NumCreated += OS_AddThread(&bufferState , 128 ,  1);
-	
 	
 }
 
-void reset(void){
-	
+void enterDiceMode2(void){
+		
+	dataPoints = 0;
+	currentIndex = 0;
+	currentXSum = 0;
+	currentYSum = 0;
+	currentZSum = 0;
+	currentRoll = 1;
 }
 
 void enterDiceMode(void){
 
 	volatile unsigned long i;
-		
+	dataPoints = 0;
+	currentIndex = 0;
+	currentXSum = 0;
+	currentYSum = 0;
+	currentZSum = 0;
+	currentRoll = 1;
+	
 	inDiceMode = 1;
 	inControlMode = 0;
-	killThreads = 0;
-	
 	OS_bWait(&LCDFree);
 
 	BSP_LCD_FillScreen(0);
 	BSP_LCD_DrawString(0 , 0 , "Dice mode activated" , 0x07E0);
-	
 	OS_bSignal(&LCDFree);
+	//resetVar = 1;
 	//OS_AddPeriodicThread(&Producer,PERIOD,1); // 2 kHz real time sampling of PD3
 	//NumCreated += OS_AddThread(&Interpreter, 128,2); 
+	//OS_bWait(&ProducerResetFree);
+	//OS_bWait(&ConsumerResetFree);
+	//resetVar = 0;	bufferStateVar = 1;
+
   NumCreated += OS_AddThread(&Consumer, 128,1);
 	NumCreated += OS_AddThread(&Producer, 128,1);
 
-	
 	OS_AddSW1Task(&exitDiceMode , 1);
-	OS_AddSW2Task(&reset , 1);
+	OS_AddSW2Task(&enterDiceMode2 , 1);
 
 }
-
+void enterBufferState(void){
+	inControlMode = 0;
+	inDiceMode = 0;
+	NumCreated += OS_AddThread(&bufferState , 128 , 1);
+}
 void controlScreen(void){
 	OS_bWait(&LCDFree);
 	BSP_LCD_FillScreen(BGCOLOR);
@@ -386,26 +424,26 @@ void controlScreen(void){
 	BSP_LCD_Message(1,3,4,"Sides: " , sides);
 	OS_bSignal(&LCDFree);
 	OS_AddSW1Task(&incrementSides , 1);
-	OS_AddSW2Task(&enterDiceMode , 1);
+	OS_AddSW2Task(&enterBufferState , 1);
 
 
 	while(1){	
-		if (inDiceMode){ 
-			NumCreated--; OS_Kill(); 
+		if (inDiceMode || !inControlMode){ 
+			NumCreated--; 
+			OS_Kill(); 
 		}
 	}
 	    
 }
 
 void enterControlMode(void){
-	NumCreated += OS_AddThread(&controlScreen , 128 , 1);
 	inControlMode = 1;
 	inDiceMode = 0;
+	NumCreated += OS_AddThread(&controlScreen , 128 , 1);
 }
 
 
 void bufferState(void){
-	
 
 	OS_bWait(&LCDFree);
 	BSP_LCD_FillScreen(BGCOLOR);
@@ -416,7 +454,8 @@ void bufferState(void){
 	OS_bSignal(&LCDFree);
 	OS_AddSW1Task(&enterDiceMode , 1);
 	OS_AddSW2Task(&enterControlMode , 1);
-	
+	//bufferStateVar = 0;
+
 
 	while (1){	
 		if (inControlMode || inDiceMode){ 
@@ -493,6 +532,9 @@ int main(void){
 	//NumCreated += OS_AddThread(&CubeNumCalc, 128,1);
    NumCreated += OS_AddThread(&startScreen , 128 , 1); 
 	OS_InitSemaphore(&LCDFree, 1);
+	//OS_InitSemaphore(&ProducerResetFree, 1);
+	//OS_InitSemaphore(&ConsumerResetFree, 1);
+
   OS_Launch(TIME_2MS); // doesn't return, interrupts enabled in here
 	return 0;            // this never executes
 }
